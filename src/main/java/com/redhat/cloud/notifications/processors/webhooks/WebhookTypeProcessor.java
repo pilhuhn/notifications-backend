@@ -25,6 +25,7 @@ import java.net.ConnectException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 
@@ -85,7 +86,6 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
         }
 
         Uni<JsonObject> payload = transformer.transform(item.getAction());
-
 //        return doHttpRequest(item, req, payload);
         return callCamel(item, metaData, payload);
     }
@@ -94,6 +94,8 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
 
         final long startTime = System.currentTimeMillis();
         final Map<String, Object> tmp = new HashMap<>();
+        UUID historyId = UUID.randomUUID();
+        meta.put("historyId", historyId.toString());
 
         Uni<NotificationHistory> historyUni = payload.onItem()
                 .transform(json -> {
@@ -104,7 +106,7 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
                 .onItem().transformToUni(json -> reallyCallCamel(item, json)
                         .onItem().transform(resp -> {
                             final long endTime = System.currentTimeMillis();
-                            NotificationHistory history = getHistoryStub(item, endTime - startTime);
+                            NotificationHistory history = getHistoryStub(item, endTime - startTime, historyId);
                             // TODO we need to retrieve the outcome and then fill in the remaining stuff into the
                             //    history item.
                             //    or send the history id along and fill it later
@@ -125,13 +127,14 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
 
     public Uni<NotificationHistory> doHttpRequest(Notification item, HttpRequest<Buffer> req, Uni<JsonObject> payload) {
         final long startTime = System.currentTimeMillis();
+        final UUID historyId = UUID.randomUUID();
 
         return payload.onItem()
                 .transformToUni(json -> req.sendJsonObject(json)
                         .onItem().transform(resp -> {
                             final long endTime = System.currentTimeMillis();
                             // Default result is false
-                            NotificationHistory history = getHistoryStub(item, endTime - startTime);
+                            NotificationHistory history = getHistoryStub(item, endTime - startTime, historyId);
 
                             if (resp.statusCode() >= 200 && resp.statusCode() <= 300) {
                                 // Accepted
@@ -166,7 +169,7 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
 
                             // TODO Duplicate code with the success part
                             final long endTime = System.currentTimeMillis();
-                            NotificationHistory history = getHistoryStub(item, endTime - startTime);
+                            NotificationHistory history = getHistoryStub(item, endTime - startTime, historyId);
 
                             HttpRequestImpl<Buffer> reqImpl = (HttpRequestImpl<Buffer>) req.getDelegate();
 
@@ -203,13 +206,14 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
         return protocol + "://" + reqImpl.host() + ":" + reqImpl.port() + reqImpl.uri();
     }
 
-    private NotificationHistory getHistoryStub(Notification item, long invocationTime) {
+    private NotificationHistory getHistoryStub(Notification item, long invocationTime, UUID historyId) {
         NotificationHistory history = new NotificationHistory();
         history.setInvocationTime(invocationTime);
         history.setEndpoint(item.getEndpoint());
         history.setAccountId(item.getTenant());
         history.setEventId("");
         history.setInvocationResult(false);
+        // TODO setId(historyId)
         return history;
     }
 }

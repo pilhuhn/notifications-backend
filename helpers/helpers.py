@@ -23,7 +23,7 @@ def find_application(app_name, bundle_name):
 
     j = r.json()
     for entity in j:
-        app = entity['entity']
+        app = entity
         if app["name"] == app_name:
             return app["id"]
 
@@ -154,20 +154,16 @@ def find_event_type(application_id, name):
     return None
 
 
-def create_endpoint(name, xrhid):
-    """Creates a default endpoint"""
+def create_endpoint(name, xrhid, properties):
+    """Creates an endpoint"""
 
     ep_uuid = uuid.uuid4()
     ep_id = str(ep_uuid)
+    properties["endpointId"] = ep_id
     ep_json = {"name": name,
                "description": name,
                "enabled": True,
-               "properties": {
-                   "endpointId": ep_id,
-                   "url": "http://localhost:8085",
-                   "method": "PUT",
-                   "secret_token": "bla-token"
-               },
+               "properties": properties,
                "type": "webhook"}
 
     h = {"x-rh-identity": xrhid}
