@@ -49,6 +49,9 @@ public class EndpointWebhook {
     @Convert(converter = BasicAuthenticationConverter.class)
     private BasicAuthentication basicAuthentication;
 
+    @Size(max = 50)
+    private String type;
+
     public Integer getId() {
         return id;
     }
@@ -103,6 +106,14 @@ public class EndpointWebhook {
 
     public void setBasicAuthentication(BasicAuthentication basicAuthentication) {
         this.basicAuthentication = basicAuthentication;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 
     @Override

@@ -16,11 +16,15 @@ import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.core.buffer.Buffer;
 import io.vertx.mutiny.ext.web.client.HttpRequest;
 import io.vertx.mutiny.ext.web.client.WebClient;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.net.ConnectException;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 
@@ -37,6 +41,11 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
     @Inject
     BaseTransformer transformer;
 
+    @Inject
+    @Channel("toCamel")
+    Emitter<String> emitter;
+
+
     MeterRegistry registry;
 
     private Counter processedCount;
@@ -51,24 +60,67 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
         Endpoint endpoint = item.getEndpoint();
         WebhookAttributes properties = (WebhookAttributes) endpoint.getProperties();
 
+        Map<String, String> metaData = new HashMap<>();
+
         WebClientOptions options = new WebClientOptions()
                 .setTrustAll(properties.isDisableSSLVerification())
                 .setConnectTimeout(3000); // TODO Should this be configurable by the system? We need a maximum in any case
+        metaData.put("trustAll", String.valueOf(properties.isDisableSSLVerification()));
 
         final HttpRequest<Buffer> req = WebClient.create(vertx, options)
                 .rawAbs(properties.getMethod().name(), properties.getUrl());
+        metaData.put("method", properties.getMethod().name());
+        metaData.put("url", properties.getUrl());
+        metaData.put("type", properties.getType());
 
         if (properties.getSecretToken() != null && !properties.getSecretToken().isBlank()) {
             req.putHeader(TOKEN_HEADER, properties.getSecretToken());
+            metaData.put(TOKEN_HEADER, properties.getSecretToken());
         }
 
         if (properties.getBasicAuthentication() != null) {
             req.basicAuthentication(properties.getBasicAuthentication().getUsername(), properties.getBasicAuthentication().getPassword());
+            metaData.put("user", properties.getBasicAuthentication().getUsername());
+            metaData.put("pass", properties.getBasicAuthentication().getPassword());
         }
 
         Uni<JsonObject> payload = transformer.transform(item.getAction());
 
-        return doHttpRequest(item, req, payload);
+//        return doHttpRequest(item, req, payload);
+        return callCamel(item, metaData, payload);
+    }
+
+    public Uni<NotificationHistory> callCamel(Notification item, Map<String, String> meta, Uni<JsonObject> payload) {
+
+        final long startTime = System.currentTimeMillis();
+        final Map<String, Object> tmp = new HashMap<>();
+
+        Uni<NotificationHistory> historyUni = payload.onItem()
+                .transform(json -> {
+                                    tmp.put("meta", meta);
+                                    tmp.put("payload", json);
+                                    return tmp;
+                })
+                .onItem().transformToUni(json -> reallyCallCamel(item, json)
+                        .onItem().transform(resp -> {
+                            final long endTime = System.currentTimeMillis();
+                            NotificationHistory history = getHistoryStub(item, endTime - startTime);
+                            // TODO we need to retrieve the outcome and then fill in the remaining stuff into the
+                            //    history item.
+                            //    or send the history id along and fill it later
+                            return history;
+                        })
+                );
+
+        return historyUni;
+    }
+
+    public Uni<Boolean> reallyCallCamel(Notification item, Map<String, Object> body) {
+
+        JsonObject jo = JsonObject.mapFrom(body);
+
+        return Uni.createFrom().completionStage(emitter.send(jo.encode()))
+                .replaceWith(Uni.createFrom().item(true));
     }
 
     public Uni<NotificationHistory> doHttpRequest(Notification item, HttpRequest<Buffer> req, Uni<JsonObject> payload) {

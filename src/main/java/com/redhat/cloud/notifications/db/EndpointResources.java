@@ -274,6 +274,7 @@ public class EndpointResources {
                                 .setParameter("method", attr.getMethod())
                                 .setParameter("disableSslVerification", attr.isDisableSSLVerification())
                                 .setParameter("secretToken", attr.getSecretToken())
+                                .setParameter("type", attr.getType())
                                 .setParameter("endpointId", endpoint.getId())
                                 .executeUpdate()
                                 .call(session::flush)
@@ -308,6 +309,7 @@ public class EndpointResources {
         webhook.setDisableSslVerification(attr.isDisableSSLVerification());
         webhook.setSecretToken(attr.getSecretToken());
         webhook.setBasicAuthentication(attr.getBasicAuthentication());
+        webhook.setType(attr.getType());
         return webhook;
     }
 }

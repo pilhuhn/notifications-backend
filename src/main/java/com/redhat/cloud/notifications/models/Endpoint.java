@@ -198,6 +198,7 @@ public class Endpoint extends CreationUpdateTimestamped {
         attr.setDisableSSLVerification(webhook.getDisableSslVerification());
         attr.setSecretToken(webhook.getSecretToken());
         attr.setBasicAuthentication(webhook.getBasicAuthentication());
+        attr.setType(webhook.getType());
         return attr;
     }
 

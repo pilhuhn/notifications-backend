@@ -24,6 +24,9 @@ public class WebhookAttributes extends Attributes {
     @JsonProperty("basic_authentication")
     private BasicAuthentication basicAuthentication;
 
+    @JsonProperty("type")
+    private String type;
+
     public WebhookAttributes() {
     }
 
@@ -71,12 +74,21 @@ public class WebhookAttributes extends Attributes {
         this.basicAuthentication = basicAuthentication;
     }
 
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
     @Override
     public String toString() {
         return "WebhookAttributes{" +
                 "id=" + id +
                 ", url='" + url + '\'' +
                 ", method=" + method +
+                ", type=" + type +
                 ", disableSSLVerification=" + disableSSLVerification +
                 ", secretToken='" + secretToken + '\'' +
                 '}';
