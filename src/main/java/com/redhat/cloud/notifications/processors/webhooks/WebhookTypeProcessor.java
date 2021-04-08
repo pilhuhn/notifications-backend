@@ -106,10 +106,8 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
                 .onItem().transformToUni(json -> reallyCallCamel(item, json)
                         .onItem().transform(resp -> {
                             final long endTime = System.currentTimeMillis();
+                            // We only create a basic stub and then later fill in the rest.
                             NotificationHistory history = getHistoryStub(item, endTime - startTime, historyId);
-                            // TODO we need to retrieve the outcome and then fill in the remaining stuff into the
-                            //    history item.
-                            //    or send the history id along and fill it later
                             return history;
                         })
                 );

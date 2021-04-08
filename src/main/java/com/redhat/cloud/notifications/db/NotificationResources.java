@@ -1,5 +1,6 @@
 package com.redhat.cloud.notifications.db;
 
+import com.redhat.cloud.notifications.events.FromCamelHistoryFiller;
 import com.redhat.cloud.notifications.models.Endpoint;
 import com.redhat.cloud.notifications.models.NotificationHistory;
 import io.smallrye.mutiny.Multi;
@@ -11,9 +12,25 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Logger;
+import com.redhat.cloud.notifications.models.Endpoint;
+import com.redhat.cloud.notifications.models.NotificationHistory;
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonObject;
+import org.hibernate.reactive.mutiny.Mutiny;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+import javax.ws.rs.NotFoundException;
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class NotificationResources {
+
+    private static final Logger log = Logger.getLogger(NotificationResources.class.getName());
 
     @Inject
     Mutiny.Session session;
@@ -54,6 +71,39 @@ public class NotificationResources {
 
         return mutinyQuery.getSingleResultOrNull()
                 .onItem().ifNotNull().transform(JsonObject::new);
+    }
+
+    public Uni<Void> updateHistoryItem(Map<String, String> jo) {
+
+        String historyId = jo.get("historyId");
+        String outcome = jo.get("outcome");
+        String details = jo.get("details");
+
+   /*     String query = "SELECT n FROM NotificationHistory n  WHERE n.id = :id";
+
+        Mutiny.Query<Object> q = session.createQuery(query)
+                .setParameter("id",UUID.fromString(historyId));
+
+        q.getSingleResultOrNull()
+                .onItem().ifNotNull().invoke(h -> System.out.println("Hi2 " + h))
+                .onItem().ifNull().failWith(new NotFoundException(historyId))
+        ;*/
+
+
+        Uni<NotificationHistory> history = session.find(NotificationHistory.class, historyId);
+        return history.onItem().invoke(h -> System.out.println("Hi " + h))
+                .replaceWith(Uni.createFrom().voidItem());
+
+/*
+                .transform(i -> {
+                    i.setDetails(details);
+                    i.setInvocationResult(result);
+                    return Uni.createFrom().item(true);
+                })
+                .call(() -> session.flush())
+                .replaceWith(Uni.createFrom().item(true));
+*/
+
     }
 
     /**
