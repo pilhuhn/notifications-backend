@@ -99,9 +99,9 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
 
         Uni<NotificationHistory> historyUni = payload.onItem()
                 .transform(json -> {
-                                    tmp.put("meta", meta);
-                                    tmp.put("payload", json);
-                                    return tmp;
+                    tmp.put("meta", meta);
+                    tmp.put("payload", json);
+                    return tmp;
                 })
                 .onItem().transformToUni(json -> reallyCallCamel(item, json)
                         .onItem().transform(resp -> {
@@ -211,7 +211,7 @@ public class WebhookTypeProcessor implements EndpointTypeProcessor {
         history.setAccountId(item.getTenant());
         history.setEventId("");
         history.setInvocationResult(false);
-        // TODO setId(historyId)
+        history.setId(historyId);
         return history;
     }
 }

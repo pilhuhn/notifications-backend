@@ -7,7 +7,6 @@ import com.redhat.cloud.notifications.db.converters.NotificationHistoryDetailsCo
 import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
@@ -27,7 +26,7 @@ import static com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY;
 public class NotificationHistory extends CreationTimestamped {
 
     @Id
-    @GeneratedValue
+    // We can not use @GeneratedValue as the ID needs to be sent over to Camel
     @JsonProperty(access = READ_ONLY)
     private UUID id;
 

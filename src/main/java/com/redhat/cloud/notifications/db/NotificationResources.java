@@ -59,6 +59,13 @@ public class NotificationResources {
                 .onItem().ifNotNull().transform(JsonObject::new);
     }
 
+    /**
+     * Update a stub history item with data we have received from the Camel sender
+     * @param jo Map containing the returned data
+     * @return Nothing
+     *
+     * @see com.redhat.cloud.notifications.events.FromCamelHistoryFiller for the source of data
+     */
     public Uni<Void> updateHistoryItem(Map<String, Object> jo) {
 
         String historyId = (String) jo.get("historyId");
@@ -72,7 +79,7 @@ public class NotificationResources {
                 .setParameter("details", details)
                 .setParameter("result", result)
                 .setParameter("id", UUID.fromString(historyId))
-                .setParameter("invocationTime", (long)duration)
+                .setParameter("invocationTime", (long) duration)
                 .executeUpdate()
                 .call(session::flush)
                 .onItem().transform(rowCount  -> rowCount > 0)
