@@ -1,6 +1,5 @@
 package com.redhat.cloud.notifications.db;
 
-import com.redhat.cloud.notifications.events.FromCamelHistoryFiller;
 import com.redhat.cloud.notifications.models.Endpoint;
 import com.redhat.cloud.notifications.models.NotificationHistory;
 import io.smallrye.mutiny.Multi;
@@ -10,19 +9,6 @@ import org.hibernate.reactive.mutiny.Mutiny;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import java.util.Map;
-import java.util.UUID;
-import java.util.logging.Logger;
-import com.redhat.cloud.notifications.models.Endpoint;
-import com.redhat.cloud.notifications.models.NotificationHistory;
-import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.Uni;
-import io.vertx.core.json.JsonObject;
-import org.hibernate.reactive.mutiny.Mutiny;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-import javax.ws.rs.NotFoundException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -73,37 +59,24 @@ public class NotificationResources {
                 .onItem().ifNotNull().transform(JsonObject::new);
     }
 
-    public Uni<Void> updateHistoryItem(Map<String, String> jo) {
+    public Uni<Void> updateHistoryItem(Map<String, Object> jo) {
 
-        String historyId = jo.get("historyId");
-        String outcome = jo.get("outcome");
-        String details = jo.get("details");
+        String historyId = (String) jo.get("historyId");
+        String outcome = (String) jo.get("outcome");
+        boolean result = "Success".equalsIgnoreCase(outcome);
+        Map details = (Map) jo.get("details");
+        Integer duration = (Integer) jo.get("duration");
 
-   /*     String query = "SELECT n FROM NotificationHistory n  WHERE n.id = :id";
-
-        Mutiny.Query<Object> q = session.createQuery(query)
-                .setParameter("id",UUID.fromString(historyId));
-
-        q.getSingleResultOrNull()
-                .onItem().ifNotNull().invoke(h -> System.out.println("Hi2 " + h))
-                .onItem().ifNull().failWith(new NotFoundException(historyId))
-        ;*/
-
-
-        Uni<NotificationHistory> history = session.find(NotificationHistory.class, historyId);
-        return history.onItem().invoke(h -> System.out.println("Hi " + h))
+        String updateQuery = "UPDATE NotificationHistory SET details = :details, invocationResult = :result, invocationTime= :invocationTime WHERE id = :id";
+        return session.createQuery(updateQuery)
+                .setParameter("details", details)
+                .setParameter("result", result)
+                .setParameter("id", UUID.fromString(historyId))
+                .setParameter("invocationTime", (long)duration)
+                .executeUpdate()
+                .call(session::flush)
+                .onItem().transform(rowCount  -> rowCount > 0)
                 .replaceWith(Uni.createFrom().voidItem());
-
-/*
-                .transform(i -> {
-                    i.setDetails(details);
-                    i.setInvocationResult(result);
-                    return Uni.createFrom().item(true);
-                })
-                .call(() -> session.flush())
-                .replaceWith(Uni.createFrom().item(true));
-*/
-
     }
 
     /**
