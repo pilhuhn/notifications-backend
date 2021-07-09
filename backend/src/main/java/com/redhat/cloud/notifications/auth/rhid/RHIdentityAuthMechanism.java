@@ -33,7 +33,7 @@ public class RHIdentityAuthMechanism implements HttpAuthenticationMechanism {
 
         // Those two come via Turnpike and have a different identity header.
         // Skip the header check for now
-        if (path.startsWith(INTERNAL + "/")) {
+        if (path.startsWith(INTERNAL + "/") || path.equals("/")) { // TODO / is for Funq
             return Uni.createFrom().item(QuarkusSecurityIdentity.builder()
                 // Set a dummy principal, but add no roles.
                 .setPrincipal(new RhIdPrincipal("-noauth-", "-1"))

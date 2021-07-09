@@ -84,6 +84,11 @@
             <artifactId>quarkus-reactive-pg-client</artifactId>
         </dependency>
 
+        <dependency>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-funqy-knative-events</artifactId>
+        </dependency>
+
         <!-- Flyway specific dependencies -->
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -16,18 +16,24 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.TracingMetadata;
 import io.vertx.core.json.JsonObject;
-import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static com.redhat.cloud.notifications.models.NotificationHistory.getHistoryStub;
@@ -40,9 +46,12 @@ public class CamelTypeProcessor implements EndpointTypeProcessor {
     @Inject
     BaseTransformer transformer;
 
-    @Inject
-    @Channel("toCamel")
+//    @Inject
+//    @Channel("toCamel")
     Emitter<String> emitter;
+
+    @ConfigProperty(name = "k.sink")
+    Optional<String> knativeSink;
 
     @Inject
     MeterRegistry registry;
@@ -107,7 +116,7 @@ public class CamelTypeProcessor implements EndpointTypeProcessor {
                     tmp.put("payload", json);
                     return tmp;
                 })
-                .onItem().transformToUni(json -> reallyCallCamel(json)
+                .onItem().transformToUni(json -> reallyCallCamel(historyId, json)
                         .onItem().transform(resp -> {
                             final long endTime = System.currentTimeMillis();
                             // We only create a basic stub. The FromCamel filler will update it later
@@ -119,7 +128,7 @@ public class CamelTypeProcessor implements EndpointTypeProcessor {
         return historyUni;
     }
 
-    public Uni<Boolean> reallyCallCamel(Map<String, Object> body) {
+    public Uni<Boolean> reallyCallCamel(UUID id, Map<String, Object> body) {
 
         JsonObject jo = JsonObject.mapFrom(body);
 
@@ -127,10 +136,38 @@ public class CamelTypeProcessor implements EndpointTypeProcessor {
         Message<String> msg = Message.of(jo.encode()); //, Metadata.of(tracingMetadata));
 
         return Uni.createFrom().item(() -> {
-            emitter.send(jo.encode()); // TODO use msg
+            sendToKnative(jo.encode(), knativeSink, id);
             return true;
         });
 
+    }
+
+    private void sendToKnative(String ce, Optional<String> sink, UUID id) {
+
+        if (sink.isEmpty()) {
+            throw new IllegalStateException("No K_SINK provided");
+        }
+
+        HttpClient client = HttpClient.newBuilder().build();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(sink.get()))
+                .header("Ce-Id", id.toString()) // This has to be unique
+                .header("Ce-Specversion", "1.0")
+                .header("Ce-Type", "com.redhat.cloud.notification")
+                .header("Ce-Source", "notifications-gw")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(ce))
+                .build();
+
+        HttpResponse<String> response = null;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();  // TODO: Customise this generated block
+        }
+        if (!((response.statusCode() / 100) == 2)) {
+            throw new RuntimeException("Status was " + response.statusCode());
+        }
     }
 
 }
